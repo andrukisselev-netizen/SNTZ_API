@@ -1,0 +1,16 @@
+{
+  "1": {
+    "class_type": "SNTZPSLinkedFolderFlux",
+    "inputs": {
+      "folder_path_mode": "last export",
+      "folder_path": "",
+      "prompt": "замени на человека в позе ка кскетч на картинке. человек в костюме человека-бутербродаа стоит на одной ноге в такой позе",
+      "model": "gemini-2.5",
+      "api_key": "",
+      "aspect_ratio": "1:1",
+      "resolution": "1K",
+      "seed": 0,
+      "overwrite_source": true
+    }
+  }
+}
