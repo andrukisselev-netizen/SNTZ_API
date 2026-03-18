@@ -1,32 +1,32 @@
-# SNTZ_API — нода ComfyUI для Gemini (image)
+# SNTZ_API — ComfyUI Node for Gemini (image)
 
-Кастомная нода ComfyUI для **генерации изображений по тексту** (и по комбинации **текст + входные картинки**) через **Gemini** (Google):
+A custom ComfyUI node for **text-to-image generation** (and **text + input images**) via **Gemini** (Google):
 
-- Модели: `gemini-2.5`, `gemini-3.1` (до 3/5 входных изображений).
-- Соотношения сторон: 1:1, 16:9, 9:16, 4:3, 3:4 и др.
-- Все вычисления на стороне сервиса (New API).
+- Models: `gemini-2.5`, `gemini-3.1` (up to 3/5 input images).
+- Aspect ratios: 1:1, 16:9, 9:16, 4:3, 3:4, etc.
+- All processing is done on the server side (New API).
 
-> **Важно:** нода работает **без VPN**. Рекомендуется отключить VPN перед использованием.
-
----
-
-## Установка
-
-См. [INSTALL.md](INSTALL.md).
+> **Important:** The node works **without VPN**. It is recommended to disable VPN before use.
 
 ---
 
-## API ключ
+## Installation
 
-1. **В ноде:** выбери ноду SNTZimage или SNTZphotoshop → **Parameters** → поле **api_key**. Ключ сохранится в `.api_key` и будет использоваться во всех нодах и плагине Photoshop.
-2. **Файл:** создай `.api_key` в папке `custom_nodes/SNTZ_API/` с ключом на первой строке.
-3. **Переменная:** задай `SNTZ_API_KEY` в окружении.
+See [INSTALL.md](INSTALL.md).
 
 ---
 
-## Ноды
+## API Key
 
-- **SNTZimage** — генерация изображений (Gemini).
-- **SNTZphotoshop** — цикл Photoshop → ComfyUI → Photoshop (Linked Smart Object).
+1. **In the node:** Select the SNTZimage or SNTZphotoshop node → **Parameters** → **api_key** field. The key will be saved to `.api_key` and used by all nodes and the Photoshop plugin.
+2. **File:** Create `.api_key` in the `custom_nodes/SNTZ_API/` folder with the key on the first line.
+3. **Environment variable:** Set `SNTZ_API_KEY` in your environment.
 
-Подробная инструкция: <http://sintez.space/node>
+---
+
+## Nodes
+
+- **SNTZimage** — Image generation (Gemini).
+- **SNTZphotoshop** — Photoshop → ComfyUI → Photoshop cycle (Linked Smart Object).
+
+Detailed instructions: <http://sintez.space/node>
