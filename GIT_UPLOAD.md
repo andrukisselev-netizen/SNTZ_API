@@ -10,6 +10,10 @@
 - [ ] Папка `PsUI/PS-Comfy/` — локальные данные, в `.gitignore`
 - [ ] Файлы `comfyui_path.txt`, `comfyui_url.txt` — локальные пути, в `.gitignore`
 
+**Что должно попасть в репозиторий:**
+
+- [ ] Файл `com.sntz.imagen-comfyui_PS.ccx` — плагин Photoshop (двойной клик для установки). Исходники UXP — не публиковать.
+
 **Если в `workflow_ps_linked_api.json` есть ключ** — открой файл и замени значение на пустую строку:
 ```json
 "api_key": "",

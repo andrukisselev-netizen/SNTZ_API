@@ -34,3 +34,6 @@ venv/
 
 # macOS
 .DS_Store
+
+# Исходники UXP — не публиковать, только .ccx
+UXP/

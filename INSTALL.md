@@ -18,6 +18,14 @@ git clone https://github.com/YOUR_USER/SNTZ_API
 
 Перезапусти ComfyUI.
 
+## Плагин Photoshop
+
+В репозитории есть файл **`com.sntz.imagen-comfyui_PS.ccx`**. При клонировании он попадает в `SNTZ_API/`.
+
+**Установка:** двойной клик по `.ccx` — плагин установится в Photoshop.
+
+Плагин работает вместе с нодой SNTZphotoshop: выделение в Photoshop → генерация в ComfyUI → обновление слоя.
+
 ## API ключ
 
 1. Выбери ноду → **Parameters** → поле **api_key** → вставь ключ и запусти. Ключ сохранится в `.api_key` автоматически.
