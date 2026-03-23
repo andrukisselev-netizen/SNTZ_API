@@ -8,7 +8,7 @@ _API_KEY_FILE = os.path.join(os.path.dirname(__file__), ".api_key")
 
 
 def _get_api_key():
-    workflow_path = os.path.join(os.path.dirname(__file__), "PsUI", "workflow_ps_linked_api.json")
+    workflow_path = os.path.join(os.path.dirname(__file__), "workflow_ps_linked_api.json")
     api_key = ""
     try:
         if os.path.isfile(workflow_path):

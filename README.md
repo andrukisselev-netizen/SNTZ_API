@@ -28,9 +28,7 @@ SNTZ_API — это:
 
 ## Как это работает
 
-### Плагин Photoshop (UXP)
-
-1. Открываете PSD, делаете **квадратное выделение** (Marquee) на нужной области.
+1. Открываете PSD, делаете **прямоугольное выделение** (Marquee) на нужной области.
 2. Открываете панель **Plugins → SNTZ**.
 3. Выбираете модель, вводите промпт, нажимаете **Generate**.
 4. ComfyUI генерирует изображение, плагин обновляет Linked Smart Object в Photoshop.
@@ -98,19 +96,10 @@ All processing is done on the server (SNTZ_API). No VPN required — disable VPN
 
 ## How it works
 
-### Option 1: Photoshop plugin (UXP)
-
 1. Open PSD, create a **rectangular selection** (Marquee) on the desired area.
 2. Open **Plugins → SNTZ**.
 3. Select model, enter prompt, click **Generate**.
 4. ComfyUI generates the image; the plugin updates the Linked Smart Object in Photoshop.
-
-### Option 2: JSX scripts (PsUI)
-
-1. In Photoshop: **File → Scripts → Browse** → `export-layer-as-linked-palette.jsx`.
-2. In the palette, set model and prompt, click **Generate**.
-3. The trigger sends the workflow to ComfyUI; the result overwrites the export folder.
-4. **Update Modified Content** runs automatically.
 
 ---
 

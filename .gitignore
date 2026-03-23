@@ -9,13 +9,6 @@ newapi_key.txt
 .env.*
 *.env
 
-# Локальные конфиги (пути, URL)
-PsUI/comfyui_path.txt
-PsUI/comfyui_url.txt
-PsUI/ps_app_name.txt
-PsUI/ps_scripts_dir.txt
-PsUI/PS-Comfy/
-
 # API_key.txt.example — оставить в репо (инструкция)
 
 # Python

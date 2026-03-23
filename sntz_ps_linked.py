@@ -35,7 +35,7 @@ PS_LINKED_MODELS = ["gemini-2.5", "gemini-3.1"]
 PS_LINKED_ASPECT_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4"]
 
 _NODE_DIR = Path(__file__).resolve().parent
-_WORKFLOW_PATH = _NODE_DIR / "PsUI" / "workflow_ps_linked_api.json"
+_WORKFLOW_PATH = _NODE_DIR / "workflow_ps_linked_api.json"
 _API_KEY_PATH = _NODE_DIR / ".api_key"
 
 

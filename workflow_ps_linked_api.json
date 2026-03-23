@@ -4,7 +4,7 @@
     "inputs": {
       "folder_path_mode": "last export",
       "folder_path": "",
-      "prompt": "замени на человека в позе ка кскетч на картинке. человек в костюме человека-бутербродаа стоит на одной ноге в такой позе",
+      "prompt": "",
       "model": "gemini-2.5",
       "api_key": "",
       "aspect_ratio": "1:1",
