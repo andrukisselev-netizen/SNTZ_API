@@ -35,4 +35,7 @@ venv/
 # macOS
 .DS_Store
 
-# Исходники UXP — в NewAPI/sntz-imagen_GEMv1.1/UXP, в SNTZ_API только .ccx
+# Внутренние документы — не публиковать
+GITHUB_CHECKLIST.md
+GIT_UPLOAD.md
+СТРУКТУРА_ПРОЕКТА.md
