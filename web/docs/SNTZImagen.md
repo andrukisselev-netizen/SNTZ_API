@@ -1,18 +1,18 @@
 # SNTZimage
 
-Кастомная нода ComfyUI: генерация изображений по тексту (и по текст+картинки) через **Gemini** (Google). Запросы идут через шлюз New API. Работает без VPN.
+Кастомная нода ComfyUI: генерация изображений по тексту (и по текст+картинки) через **New API → OpenRouter**. Модели Gemini Image (google/gemini-2.5-flash-image и др.).
 
-## Инструкция по использованию
+## Важно: настройка канала в New API
 
-<a href="http://sintez.space/node" target="_blank" rel="noopener">Подробная инструкция по ноде на сайте sintez →</a>
+Для корректной передачи `image_config` и `modalities` включите **Pass Through Body** (pass_through_body_enabled) для канала OpenRouter в настройках New API. Без этого aspect_ratio может игнорироваться.
 
 ## Параметры ноды
 
 - **prompt** — текст описания изображения.
-- **api_key** — API-ключ. Properties → Parameters → api_key (или .api_key, или переменная окружения SNTZ_API_KEY).
+- **api_key** — API-ключ (New API или OpenRouter). Properties → Parameters → api_key (или .api_key, или SNTZ_API_KEY).
 - **model** — gemini-2.5, gemini-3.1 (до 3/5 входных изображений).
-- **aspect_ratio** — соотношение сторон.
-- **resolution** — 1K/2K/4K (генерация в 1K).
+- **aspect_ratio** — соотношение сторон (1:1, 16:9, 9:16 и др.).
+- **resolution** — 1K/2K/4K.
 - **1_GEM_2_5 … 7_GEM_Pro** — опциональные входы изображений.
 
 ## Путь к сохранённым изображениям (плагин Photoshop)

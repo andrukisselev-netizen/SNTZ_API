@@ -12,7 +12,7 @@
 
 **Что должно попасть в репозиторий:**
 
-- [ ] Файл `com.sntz.imagen-comfyui_PS.ccx` — плагин Photoshop (двойной клик для установки). Исходники UXP — не публиковать.
+- [ ] Файл `com.sntz.imagen-comfyui_PS.ccx` — плагин Photoshop (двойной клик для установки). Исходники UXP — в NewAPI/sntz-imagen_GEMv1.1/UXP.
 
 **Если в `workflow_ps_linked_api.json` есть ключ** — открой файл и замени значение на пустую строку:
 ```json

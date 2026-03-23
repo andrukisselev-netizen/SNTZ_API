@@ -1,6 +1,6 @@
 """
-SNTZ Imagen — ComfyUI node for text-to-image (and text-in-image) via SNTZ.
-Uses Gemini image models only. For FLUX use node SNTZ Imagen FLUX.
+SNTZ Imagen — ComfyUI node for text-to-image (and text-in-image) via New API → OpenRouter.
+Только OpenRouter (формат image_config + modalities). Модели Gemini Image через OpenRouter.
 """
 import os
 import re
@@ -24,16 +24,12 @@ GATEWAY_ASPECT_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4", "2:3", "3:2", "5:4
 GATEWAY_IMAGE_SIZES = ["1K", "2K", "4K"]
 MAX_INPUT_IMAGES = 7  # всего слотов (принцип: 2.5 / 3.1 / Pro)
 
-# Отображаемые в ноде названия → id модели для API (должны совпадать с /v1/models по ключу)
+# OpenRouter model IDs: https://openrouter.ai/docs/features/multimodal/image-generation
 MODEL_DISPLAY_TO_API = {
     "gemini-2.5": "google/gemini-2.5-flash-image",
-    "gemini-2.5-flash-image": "gemini-2.5-flash-image",
-    "gemini-3.1": "gemini-3.1-flash-image-preview",
-    "gemini-3-pro": "gemini-3-pro-image-preview",
-    "gemini-3-pro-preview": "gemini-3-pro-preview",
+    "gemini-3.1": "google/gemini-3.1-flash-image-preview",
 }
 
-# Модели, видимые в выпадающем списке (скрыты: gemini-3-pro, gemini-3-pro-preview, gemini-2.5-flash-image)
 MODEL_VISIBLE_IN_UI = ["gemini-2.5", "gemini-3.1"]
 
 # Системный промпт для Gemini Imagen: улучшение качества без изменения содержания
@@ -572,7 +568,6 @@ class SNTZImagen:
             aspect_ratio = "1:1"
         if resolution not in GATEWAY_IMAGE_SIZES:
             resolution = "1K"
-        resolution_for_api = "1K"
 
         input_tensors = []
         for name in INPUT_IMAGE_SLOTS:
@@ -599,7 +594,7 @@ class SNTZImagen:
             content=content,
             model=model_for_api,
             aspect_ratio=aspect_ratio,
-            resolution=resolution_for_api,
+            resolution=resolution,
             seed=seed,
             debug_payload=debug,
         )
@@ -616,17 +611,10 @@ class SNTZImagen:
         seed,
         debug_payload,
     ):
-        """Запрос к API Gemini. content — строка (промпт) или список [text, image_url, ...]. Возвращает (tensor, сообщение_баланса). Баланс запрашивается после генерации."""
-        # New API ожидает имя модели без префикса (например gemini-2.5-flash-image)
-        # Прокси в МСК (176.124.212.29) ведёт на тот же New API — префикс не нужен
-        if "/" in model:
-            model_for_api = model
-        elif "165.227" in base or "176.124.212.29" in base or "newapi" in base.lower() or "localhost" in base:
-            model_for_api = model
-        else:
-            model_for_api = f"google-ai-studio/{model}"
-        # New API (relay-gemini.go) передаёт aspect_ratio в Gemini только из extra_body.google.image_config.
-        # Топ-уровневый image_config релей не читает — см. QuantumNous/new-api relay/channel/gemini/relay-gemini.go
+        """Запрос через New API в OpenRouter. Формат OpenRouter: image_config и modalities на верхнем уровне."""
+        # OpenRouter model ID: google/gemini-2.5-flash-image и т.п.
+        model_for_api = model if "/" in model else f"google/{model}"
+        # Формат OpenRouter: https://openrouter.ai/docs/features/multimodal/image-generation
         image_config = {
             "aspect_ratio": aspect_ratio,
             "image_size": resolution,
@@ -639,11 +627,8 @@ class SNTZImagen:
                 {"role": "system", "content": GEMINI_IMAGE_SYSTEM_PROMPT},
                 {"role": "user", "content": content}
             ],
-            "extra_body": {
-                "google": {
-                    "image_config": image_config,
-                },
-            },
+            "modalities": ["image", "text"],
+            "image_config": image_config,
         }
 
         url = f"{base.rstrip('/')}/chat/completions"
