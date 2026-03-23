@@ -37,10 +37,6 @@ SNTZ_API/
 - Установите ComfyUI Portable (например, в `C:\Ai\`).
 - Запуск: `C:\Ai\run_cpu.bat`
 
-### Вариант B: Обычная установка
-
-Установите ComfyUI согласно [официальной инструкции](https://github.com/comfyanonymous/ComfyUI).
-
 ---
 
 ## 2. ComfyUI-Manager (рекомендуется)
