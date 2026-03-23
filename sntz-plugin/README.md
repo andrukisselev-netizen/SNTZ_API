@@ -11,7 +11,7 @@
 ## Установка
 
 1. Установите ComfyUI и добавьте ноду SNTZ_API в `custom_nodes/` (через ComfyUI Manager или вручную)
-2. Скопируйте папку **`com.sntz.imagen-comfyui_PS`** в каталог плагинов Photoshop:
+2. Скопируйте папку **`sntz-plugin`** в каталог плагинов Photoshop:
    - **Windows:** `C:\Program Files\Adobe\Adobe Photoshop 2025\Plug-ins\` (версия в пути зависит от вашей установки)
    - **macOS:** `Applications/Adobe Photoshop 2025/Plug-ins/` (ПКМ по Photoshop → Show Package Contents → Contents → Plug-ins)
 3. Перезапустите Photoshop. Плагин появится в меню **Plugins → SNTZ**

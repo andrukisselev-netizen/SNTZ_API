@@ -54,9 +54,9 @@ git clone https://github.com/andrukisselev-netizen/SNTZ_API
 
 ## 4. Плагин Photoshop
 
-В репозитории есть папка **`com.sntz.imagen-comfyui_PS`** с плагином.
+В репозитории есть папка **`sntz-plugin`** с плагином.
 
-**Установка:** скопируйте папку `com.sntz.imagen-comfyui_PS` в каталог плагинов Photoshop:
+**Установка:** скопируйте папку `sntz-plugin` в каталог плагинов Photoshop:
 
 | Платформа | Путь |
 |-----------|------|

@@ -43,7 +43,7 @@ SNTZ_API — это:
 
 1. Установите **ComfyUI** и **ComfyUI-Manager**.
 2. Добавьте **SNTZ_API** в `custom_nodes/` (через `git clone`).
-3. Скопируйте папку **`com.sntz.imagen-comfyui_PS`** в каталог плагинов Photoshop (`Program Files/Adobe/Photoshop…/Plug-ins/`).
+3. Скопируйте папку **`sntz-plugin`** в каталог плагинов Photoshop (`Program Files/Adobe/Photoshop…/Plug-ins/`).
 4. Укажите **API-ключ** в ноде или в файле `.api_key`.
 
 ---
@@ -111,7 +111,7 @@ Summary:
 
 1. Install **ComfyUI** and **ComfyUI-Manager** (optional).
 2. Add **SNTZ_API** to `custom_nodes/` (via Manager or `git clone`).
-3. Copy the **`com.sntz.imagen-comfyui_PS`** folder to the Photoshop Plug-ins directory (`Program Files/Adobe/Photoshop…/Plug-ins/`).
+3. Copy the **`sntz-plugin`** folder to the Photoshop Plug-ins directory (`Program Files/Adobe/Photoshop…/Plug-ins/`).
 4. Set your **API key** in the node or in the `.api_key` file.
 
 ---
