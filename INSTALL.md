@@ -4,6 +4,22 @@
 
 **Назначение:** ComfyUI ноды (SNTZimage, SNTZphotoshop), плагин Photoshop для генерации изображений и связки Photoshop ↔ ComfyUI.
 
+---
+
+## Что должно быть установлено на компьютере
+
+Перед установкой SNTZ_API необходимо иметь:
+
+| Компонент | Описание | Ссылки |
+|-----------|----------|--------|
+| **ComfyUI Portable** | **Обязательно.** Портативная версия ComfyUI для Windows (NVIDIA GPU). | [Репозиторий](https://github.com/Comfy-Org/ComfyUI) · [Скачать .7z](https://github.com/comfyanonymous/ComfyUI/releases/latest/download/ComfyUI_windows_portable_nvidia.7z) |
+| **ComfyUI-Manager** | Установка кастомных нод. | [Репозиторий](https://github.com/Comfy-Org/ComfyUI-Manager) |
+| **Git** | Для клонирования репозиториев (SNTZ_API, ComfyUI-Manager). | [Git for Windows](https://git-scm.com/install/windows) |
+
+**Порядок:** сначала установите ComfyUI Portable, затем Git (если ещё не установлен), после этого — ComfyUI-Manager и SNTZ_API.
+
+---
+
 ## Структура репозитория
 
 ```
@@ -30,27 +46,34 @@ SNTZ_API/
 
 ---
 
-## 1. ComfyUI
+## 1. ComfyUI Portable (обязательно)
 
-### Вариант A: ComfyUI Portable (Windows)
+1. **Скачайте** [ComfyUI_windows_portable_nvidia.7z](https://github.com/comfyanonymous/ComfyUI/releases/latest/download/ComfyUI_windows_portable_nvidia.7z)
+2. **Распакуйте** (7-Zip или проводник Windows) в папку, например `C:\Ai\`
+3. **Запуск:** `run_cpu.bat` (CPU) или `run_nvidia_gpu.bat` (GPU)
 
-- Установите ComfyUI Portable (например, в `C:\Ai\`).
-- Запуск: `C:\Ai\run_cpu.bat`
+Репозиторий ComfyUI: https://github.com/Comfy-Org/ComfyUI
 
 ---
 
-## 2. ComfyUI-Manager 
+## 2. Git (для клонирования)
+
+Установите [Git for Windows](https://git-scm.com/install/windows). При установке можно отключить интеграцию в контекстное меню проводника.
+
+---
+
+## 3. ComfyUI-Manager (рекомендуется)
 
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/Comfy-Org/ComfyUI-Manager
 ```
 
-Или скачайте [ZIP](https://github.com/Comfy-Org/ComfyUI-Manager) и распакуйте в `custom_nodes`. Перезапустите ComfyUI.
+Или скачайте [ZIP](https://github.com/Comfy-Org/ComfyUI-Manager/archive/refs/heads/main.zip) и распакуйте в `custom_nodes` (папка должна называться `ComfyUI-Manager`). Перезапустите ComfyUI.
 
 ---
 
-## 3. SNTZ_API (ноды)
+## 4. SNTZ_API (ноды)
 
 ### Через ComfyUI Manager
 
@@ -68,11 +91,9 @@ git clone https://github.com/andrukisselev-netizen/SNTZ_API
 
 Или скопируйте папку `SNTZ_API` в `custom_nodes`. Перезапустите ComfyUI.
 
-**Git:** для клонирования нужен [Git](https://git-scm.com/). При установке можно отключить интеграцию в контекстное меню проводника.
-
 ---
 
-## 4. Плагин Photoshop
+## 5. Плагин Photoshop
 
 В репозитории есть папка **`sntz-plugin`** с плагином.
 
@@ -89,14 +110,14 @@ git clone https://github.com/andrukisselev-netizen/SNTZ_API
 
 ---
 
-## 5. API ключ
+## 6. API ключ
 
 1. **В ноде:** выбери ноду SNTZimage или SNTZphotoshop → **Parameters** → поле **api_key** → вставь ключ и запусти. Ключ сохранится в `.api_key` автоматически.
 2. **Файл:** создай `.api_key` в папке `custom_nodes/SNTZ_API/` и вставь ключ на первой строке (файл создаётся при первом запуске).
 
 ---
 
-## 6. Готовые workflow
+## 7. Готовые workflow
 
 В папке `workflows/`:
 - **ComfyIMG.json** — нода SNTZimage (генерация по промпту)
@@ -107,7 +128,7 @@ git clone https://github.com/andrukisselev-netizen/SNTZ_API
 
 ---
 
-## 7. Проверка установки
+## 8. Проверка установки
 
 - [ ] ComfyUI запускается без ошибок
 - [ ] ComfyUI Manager виден в интерфейсе (если установлен)
