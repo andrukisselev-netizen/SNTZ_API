@@ -1,4 +1,6 @@
 # SNTZ_API — связка Photoshop и ComfyUI для генерации изображений
+![NODE-t](https://github.com/user-attachments/assets/6be9827c-c0e0-4756-a30d-eccd062f6f9e)
+
 
 Комплекс для **автоматизации работы Photoshop и ComfyUI** при генерации изображений через **Gemini** (Google). Позволяет создавать и редактировать изображения по текстовому описанию прямо из Photoshop, с автоматическим обновлением слоёв.
 
@@ -56,6 +58,8 @@ SNTZ_API — это:
 ---
 
 ## Ноды
+![NODE-t2](https://github.com/user-attachments/assets/30144c19-0ded-41ec-b9a8-9c04018a2511)
+
 
 | Нода | Назначение |
 |------|------------|
