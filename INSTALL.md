@@ -16,9 +16,13 @@ SNTZ_API/
 ├── sntz_imagen.py        ← Нода SNTZimage
 ├── sntz_ps_linked.py     ← Нода SNTZphotoshop
 ├── __init__.py           ← Роут /sntz_ps_linked_config
-├── web/                  ← Документация в UI ComfyUI
-│   ├── docs/SNTZImagen.md
+├── web/                  ← Документация в UI ComfyUI (вкладка Info)
+│   ├── docs/
 │   └── sntz_api_key.js
+├── workflows/            ← Готовые пресеты
+│   ├── ComfyIMG.json     ← SNTZimage
+│   ├── ComfyPS.json      ← SNTZphotoshop
+│   └── UpESRx2.json      ← RealESRGAN 2× Upscale
 ├── README.md
 ├── INSTALL.md
 └── API_key.txt.example
@@ -96,7 +100,18 @@ git clone https://github.com/andrukisselev-netizen/SNTZ_API
 
 ---
 
-## 6. Проверка установки
+## 6. Готовые workflow
+
+В папке `workflows/`:
+- **ComfyIMG.json** — нода SNTZimage (генерация по промпту)
+- **ComfyPS.json** — нода SNTZphotoshop (Photoshop ↔ ComfyUI)
+- **UpESRx2.json** — RealESRGAN 2× апскейл
+
+Загрузите JSON в ComfyUI через меню или перетащите в окно.
+
+---
+
+## 7. Проверка установки
 
 - [ ] ComfyUI запускается без ошибок
 - [ ] ComfyUI Manager виден в интерфейсе (если установлен)

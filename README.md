@@ -40,11 +40,14 @@ SNTZ_API — это:
 ```
 SNTZ_API/
 ├── sntz-plugin/          ← Плагин Photoshop
+├── workflows/            ← Готовые пресеты (ComfyIMG, ComfyPS, UpESRx2)
 ├── workflow_ps_linked_api.json
 ├── sntz_imagen.py, sntz_ps_linked.py
 ├── __init__.py, web/
 └── README.md, INSTALL.md
 ```
+
+**Готовые workflow:** в папке `workflows/`. Документация по нодам — во вкладке **Info** боковой панели ComfyUI при выборе ноды.
 
 ## Установка
 
@@ -75,7 +78,7 @@ SNTZ_API/
 | **SNTZimage** | Генерация изображений (Gemini) по промпту, опционально с входными картинками |
 | **SNTZphotoshop** | Цикл Photoshop ↔ ComfyUI: экспорт выделения → генерация → обновление Linked Smart Object |
 
-Детали: [sintez.space/node](http://sintez.space/node)
+Детали: [sintez.space](http://sintez.space). ЛК (лимиты, пополнение): http://176.124.212.29/
 
 ---
 
@@ -119,6 +122,7 @@ All processing is done on the server (SNTZ_API). No VPN required — disable VPN
 ```
 SNTZ_API/
 ├── sntz-plugin/          ← Photoshop plugin
+├── workflows/            ← Ready presets (ComfyIMG, ComfyPS, UpESRx2)
 ├── workflow_ps_linked_api.json
 ├── sntz_imagen.py, sntz_ps_linked.py
 ├── __init__.py, web/
@@ -152,4 +156,4 @@ Summary:
 | **SNTZimage** | Image generation (Gemini) from prompt, optionally with input images |
 | **SNTZphotoshop** | Photoshop ↔ ComfyUI loop: export selection → generate → update Linked Smart Object |
 
-Details: [sintez.space/node](http://sintez.space/node)
+Details: [sintez.space](http://sintez.space). Dashboard (limits, top-up): http://176.124.212.29/
