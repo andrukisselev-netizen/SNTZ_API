@@ -4,6 +4,26 @@
 
 **Назначение:** ComfyUI ноды (SNTZimage, SNTZphotoshop), плагин Photoshop для генерации изображений и связки Photoshop ↔ ComfyUI.
 
+## Структура репозитория
+
+```
+SNTZ_API/
+├── sntz-plugin/           ← Плагин Photoshop (скопировать в Plug-ins)
+│   ├── manifest.json
+│   ├── index.html, index.js
+│   └── icons/
+├── workflow_ps_linked_api.json  ← Шаблон workflow (api_key для плагина)
+├── sntz_imagen.py        ← Нода SNTZimage
+├── sntz_ps_linked.py     ← Нода SNTZphotoshop
+├── __init__.py           ← Роут /sntz_ps_linked_config
+├── web/                  ← Документация в UI ComfyUI
+│   ├── docs/SNTZImagen.md
+│   └── sntz_api_key.js
+├── README.md
+├── INSTALL.md
+└── API_key.txt.example
+```
+
 ---
 
 ## 1. ComfyUI

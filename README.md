@@ -35,6 +35,17 @@ SNTZ_API — это:
 
 ---
 
+## Структура репозитория
+
+```
+SNTZ_API/
+├── sntz-plugin/          ← Плагин Photoshop
+├── workflow_ps_linked_api.json
+├── sntz_imagen.py, sntz_ps_linked.py
+├── __init__.py, web/
+└── README.md, INSTALL.md
+```
+
 ## Установка
 
 Подробная инструкция: **[INSTALL.md](INSTALL.md)**.
@@ -102,6 +113,17 @@ All processing is done on the server (SNTZ_API). No VPN required — disable VPN
 4. ComfyUI generates the image; the plugin updates the Linked Smart Object in Photoshop.
 
 ---
+
+## Repository structure
+
+```
+SNTZ_API/
+├── sntz-plugin/          ← Photoshop plugin
+├── workflow_ps_linked_api.json
+├── sntz_imagen.py, sntz_ps_linked.py
+├── __init__.py, web/
+└── README.md, INSTALL.md
+```
 
 ## Installation
 
