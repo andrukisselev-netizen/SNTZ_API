@@ -39,7 +39,7 @@ SNTZ_API/
 
 ---
 
-## 2. ComfyUI-Manager (рекомендуется)
+## 2. ComfyUI-Manager 
 
 ```bash
 cd ComfyUI/custom_nodes
