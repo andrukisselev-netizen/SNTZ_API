@@ -213,6 +213,190 @@ def _decode_b64_to_pil(b64_str):
         return None
 
 
+def _extract_http_image_urls_from_markdown_content(text):
+    """Из markdown '![...](https://host/path.png)' извлекает URL (допускается пробел после '(')."""
+    if not text or not isinstance(text, str):
+        return []
+    pattern = re.compile(r"!\[[^\]]*\]\(\s*(https?://[^)\s]+)\s*\)", re.IGNORECASE)
+    return pattern.findall(text)
+
+
+def _looks_like_served_image_url(u):
+    """Эвристика: ссылка на отданный файл (не API endpoint)."""
+    if not u:
+        return False
+    low = u.lower().split("?", 1)[0].rstrip(").,;\"'")
+    if "/gen/" in low:
+        return True
+    return low.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))
+
+
+def _extract_loose_http_image_urls(text):
+    """
+    Дополнительный поиск URL картинок в тексте: [text](url), затем «голые» https?://…
+    с /gen/ или расширением изображения (на случай нестандартного markdown).
+    """
+    if not text or not isinstance(text, str):
+        return []
+    seen = set()
+    out = []
+
+    def _add(raw):
+        if not raw or not isinstance(raw, str):
+            return
+        u = raw.strip().rstrip(").,;\"'")
+        if not (u.startswith("http://") or u.startswith("https://")):
+            return
+        if not _looks_like_served_image_url(u):
+            return
+        if u not in seen:
+            seen.add(u)
+            out.append(u)
+
+    for u in re.findall(r"\[[^\]]*\]\(\s*(https?://[^)\s]+)\s*\)", text, flags=re.IGNORECASE):
+        _add(u)
+    for m in re.finditer(r"https?://[^\s\"'<>)\]]+", text):
+        _add(m.group(0))
+    return out
+
+
+def _all_assistant_text_blobs(content_raw, msg):
+    """Весь текст ответа ассистента одной строкой для поиска паттернов (content строка или list с type=text)."""
+    parts = []
+    if isinstance(content_raw, str):
+        parts.append(content_raw)
+    elif isinstance(content_raw, list):
+        for item in content_raw:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") == "text" and item.get("text"):
+                parts.append(str(item["text"]))
+    if isinstance(msg, dict):
+        for key in ("refusal", "reasoning_content"):
+            v = msg.get(key)
+            if isinstance(v, str) and v.strip():
+                parts.append(v)
+    return "\n".join(parts)
+
+
+def _collect_http_image_urls_from_assistant_message(content_raw, msg):
+    """
+    Все http(s) ссылки на изображения из ответа ассистента (markdown + текст + блоки image_url).
+    """
+    seen = set()
+    ordered = []
+
+    def _add(u):
+        if not u or not isinstance(u, str):
+            return
+        u = u.strip().rstrip(").,;\"'")
+        if not (u.startswith("http://") or u.startswith("https://")):
+            return
+        if u not in seen:
+            seen.add(u)
+            ordered.append(u)
+
+    blob = _all_assistant_text_blobs(content_raw, msg)
+    if blob:
+        for u in _extract_http_image_urls_from_markdown_content(blob):
+            _add(u)
+        for u in _extract_loose_http_image_urls(blob):
+            _add(u)
+    if isinstance(content_raw, str):
+        for u in _extract_http_image_urls_from_markdown_content(content_raw):
+            _add(u)
+        for u in _extract_loose_http_image_urls(content_raw):
+            _add(u)
+
+    if isinstance(content_raw, list):
+        for item in content_raw:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") != "image_url":
+                continue
+            iu = item.get("image_url")
+            url_val = iu if isinstance(iu, str) else (iu or {}).get("url")
+            _add(url_val)
+
+    blocks = []
+    if isinstance(msg, dict):
+        blocks = msg.get("images") or []
+        if not blocks and isinstance(content_raw, list):
+            blocks = content_raw
+    for block in blocks or []:
+        if not isinstance(block, dict):
+            continue
+        img_obj = block.get("image_url") or block
+        url_val = img_obj.get("url") if isinstance(img_obj, dict) else None
+        _add(url_val)
+
+    return ordered
+
+
+def _format_image_urls_output(urls):
+    """Одна строка для выхода image_urls (перенос строки между несколькими URL)."""
+    if not urls:
+        return ""
+    return "\n".join(urls)
+
+
+def _fallback_image_urls_caption(use_image_url_delivery):
+    """
+    Текст для выхода image_urls, когда сервер не вернул HTTP-ссылку (только inline base64).
+    """
+    if use_image_url_delivery:
+        return (
+            "(HTTP-ссылки нет: при запросе URL сервер всё равно ответил встроенным base64. "
+            "На хосте New API (Docker) задайте GEMINI_IMAGE_STORAGE_DIR, GEMINI_IMAGE_PUBLIC_BASE_URL, "
+            "примонтируйте volume и настройте раздачу /gen/ — см. SNTZ_API/GEMINI_IMAGE_URL_DEPLOY.md)"
+        )
+    return (
+        "(Публичная ссылка не запрашивалась: включите use_image_url_delivery в ноде "
+        "(или SNTZ_IMAGE_DELIVERY_URL=1); сейчас картинка только в выходе images.)"
+    )
+
+
+def _log_image_urls_output(response_image_urls, urls_str_for_widget):
+    """Всегда печатаем в консоль Comfy, что ушло в выход image_urls."""
+    if response_image_urls:
+        for u in response_image_urls:
+            print(f"[SNTZ Imagen] image_url: {u}")
+    else:
+        preview = (urls_str_for_widget or "").replace("\n", " ")
+        if len(preview) > 320:
+            preview = preview[:320] + "…"
+        print(f"[SNTZ Imagen] image_urls (выход, без HTTP): {preview}")
+
+
+def _pil_from_http_image_url(url, timeout=120):
+    """
+    Скачивает изображение по HTTP(S).
+    Возвращает (PIL RGB, None) при успехе или (None, краткое описание ошибки).
+    """
+    if not url or not isinstance(url, str):
+        return None, "пустой URL"
+    url = url.strip()
+    if not (url.startswith("http://") or url.startswith("https://")):
+        return None, "URL не http(s)"
+    short = url[:80] + ("…" if len(url) > 80 else "")
+    try:
+        r = requests.get(url, timeout=timeout, stream=True)
+        r.raise_for_status()
+        pil = Image.open(BytesIO(r.content)).convert("RGB")
+        return pil, None
+    except requests.exceptions.Timeout:
+        return None, f"таймаут ({timeout} с) при загрузке {short}"
+    except requests.exceptions.ConnectionError as e:
+        return None, f"нет соединения для {short}: {e!s}"[:240]
+    except requests.exceptions.HTTPError as e:
+        code = getattr(e.response, "status_code", "?")
+        return None, f"HTTP {code} при загрузке {short}"
+    except requests.exceptions.RequestException as e:
+        return None, f"сеть: {e!s}"[:240]
+    except Exception as e:
+        return None, f"файл не изображение или повреждён: {e!s}"[:240]
+
+
 def _extract_base64_images_from_markdown_content(text):
     """
     Из строки вида '![image](data:image/png;base64,XXX)' или '![image](data:image/jpeg;base64,XXX)'
@@ -248,6 +432,25 @@ def _mask_key(key):
     if not key or len(key) < 12:
         return "(ключ не задан или слишком короткий)"
     return f"{key[:8]}...{key[-4:]}"
+
+
+def _extract_api_error_message(resp_body, fallback_text="", max_len=400):
+    """Краткое сообщение об ошибке из JSON тела ответа API."""
+    if isinstance(resp_body, dict):
+        err = resp_body.get("error")
+        if isinstance(err, dict):
+            parts = []
+            if err.get("code"):
+                parts.append(str(err["code"]))
+            if err.get("message"):
+                parts.append(str(err["message"]))
+            if parts:
+                return _translate_quota_error_message(" — ".join(parts))[:max_len]
+        if resp_body.get("message"):
+            return _translate_quota_error_message(str(resp_body["message"]))[:max_len]
+    if isinstance(fallback_text, str) and fallback_text.strip():
+        return fallback_text.strip()[:max_len]
+    return ""
 
 
 def _translate_quota_error_message(msg):
@@ -444,6 +647,99 @@ def _truncate_for_log(obj, max_str=1500):
     return obj
 
 
+def _format_bytes(num_bytes):
+    """Человекочитаемый размер для логов."""
+    if num_bytes is None or num_bytes < 0:
+        return "?"
+    n = float(num_bytes)
+    for unit in ("Б", "КиБ", "МиБ", "ГиБ"):
+        if n < 1024.0 or unit == "ГиБ":
+            return f"{n:.1f} {unit}" if unit != "Б" else f"{int(n)} {unit}"
+        n /= 1024.0
+    return f"{int(num_bytes)} Б"
+
+
+def _approx_b64_decoded_len(b64_fragment_len):
+    """Оценка размера после base64-декодирования по длине строки (без padding)."""
+    if not b64_fragment_len:
+        return 0
+    return max(0, (b64_fragment_len * 3) // 4)
+
+
+def _summarize_outgoing_images_for_log(content):
+    """
+    Краткая сводка по изображениям, уходящим в API (без вывода base64).
+    content — str или list частей multimodal.
+    """
+    if isinstance(content, str):
+        return "вход: только текст (без изображений в запросе)"
+    if not isinstance(content, list):
+        return "вход: нестандартный формат content"
+    parts = []
+    n_img = 0
+    total_approx = 0
+    for item in content:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") != "image_url":
+            continue
+        media = item.get("image_url") or {}
+        url = (media.get("url") or "") if isinstance(media, dict) else ""
+        n_img += 1
+        if url.startswith("data:image/"):
+            semi = url.find(";base64,")
+            if semi != -1:
+                b64len = len(url) - (semi + len(";base64,"))
+                approx = _approx_b64_decoded_len(b64len)
+                total_approx += approx
+                mime = url[5:semi] if semi > 5 else "image"
+                parts.append(f"#{n_img} data URL ({mime}, ~{_format_bytes(approx)})")
+            else:
+                parts.append(f"#{n_img} data URL (непарсибельный префикс)")
+        elif url.startswith("http://") or url.startswith("https://"):
+            short = url[:72] + ("…" if len(url) > 72 else "")
+            parts.append(f"#{n_img} remote URL ({short})")
+        else:
+            parts.append(f"#{n_img} (пустой или неизвестный URL)")
+    if n_img == 0:
+        return "вход: только текст (без изображений в запросе)"
+    tail = f", суммарно декодировано ~{_format_bytes(total_approx)}" if total_approx else ""
+    return f"вход: {n_img} изображ. в запросе — " + "; ".join(parts) + tail
+
+
+def _summarize_assistant_response_for_log(content_raw, msg, output_count, http_errors, decode_errors):
+    """Одна строка в лог после разбора ответа API."""
+    blob = _all_assistant_text_blobs(content_raw, msg)
+    if output_count > 0:
+        mode = []
+        if _extract_http_image_urls_from_markdown_content(blob) or _extract_loose_http_image_urls(blob):
+            mode.append("HTTP URL в тексте ответа")
+        if "data:image/" in blob:
+            mode.append("base64 в markdown/тексте")
+        if isinstance(msg, dict) and msg.get("images"):
+            mode.append("поле message.images")
+        if isinstance(content_raw, list) and any(
+            isinstance(x, dict) and x.get("type") == "image_url" for x in content_raw
+        ):
+            mode.append("блоки content (image_url)")
+        if not mode:
+            mode.append("встроенные данные (см. разбор выше)")
+        return f"ответ: получено изображений: {output_count} (источник: {', '.join(mode)})"
+    hints = []
+    if http_errors:
+        hints.append("ошибки загрузки по URL: " + "; ".join(http_errors[:3]))
+    if decode_errors:
+        hints.append("ошибки декодирования: " + "; ".join(decode_errors[:3]))
+    if isinstance(content_raw, str) and content_raw.strip():
+        prev = (content_raw.strip()[:200] + "…") if len(content_raw.strip()) > 200 else content_raw.strip()
+        hints.append(f"фрагмент текста ответа: {prev}")
+    elif content_raw is not None:
+        hints.append(f"content не строка: {type(content_raw).__name__}")
+    else:
+        hints.append("пустой content")
+    return "ответ: изображений нет. " + " | ".join(hints)
+
+
 def _log_analytics(title, data):
     """Подробный вывод в консоль для аналитики."""
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -521,9 +817,8 @@ class SNTZImagen:
                 "aspect_ratio": (GATEWAY_ASPECT_RATIOS, {"default": "1:1"}),
                 "resolution": (GATEWAY_IMAGE_SIZES, {"default": "1K"}),
                 "seed": ("INT", {"default": 1042021, "min": 0, "max": 0xFFFFFFFFFFFFFFFF, "step": 1}),
-                "debug": ("BOOLEAN", {"default": True, "label_on": "true", "label_off": "false"}),
-                "credits_only": ("BOOLEAN", {
-                    "default": False,
+                "use_image_url_delivery": ("BOOLEAN", {
+                    "default": True,
                     "label_on": "true",
                     "label_off": "false",
                 }),
@@ -533,8 +828,8 @@ class SNTZImagen:
             },
         }
 
-    RETURN_TYPES = ("IMAGE", "STRING")
-    RETURN_NAMES = ("images", "credits")
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING")
+    RETURN_NAMES = ("images", "credits", "image_urls")
     FUNCTION = "process"
     CATEGORY = "SNTZ"
     OUTPUT_NODE = True
@@ -547,22 +842,16 @@ class SNTZImagen:
         aspect_ratio,
         resolution,
         seed,
-        debug,
-        credits_only,
+        use_image_url_delivery,
         **kwargs,
     ):
         key = _resolve_api_key(api_key)
         if not key:
             raise ValueError(
-                "Укажите API ключ в поле api_key (боковое меню ноды), создайте файл .api_key или задайте SNTZ_API_KEY в переменной окружения."
+                "API-ключ не задан. Укажите ключ в поле api_key (боковая панель ноды), "
+                "сохраните его в файле .api_key рядом с нодой или задайте переменную окружения SNTZ_API_KEY."
             )
         _save_api_key_to_file(key)
-
-        if credits_only:
-            balance_info = _fetch_balance(BASE_URL_SNTZ, key)
-            balance_str = _build_balance_str(balance_info)
-            placeholder = torch.zeros(1, 64, 64, 3)
-            return (placeholder, balance_str)
 
         if aspect_ratio not in GATEWAY_ASPECT_RATIOS:
             aspect_ratio = "1:1"
@@ -588,6 +877,9 @@ class SNTZImagen:
                     content.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}})
 
         model_for_api = MODEL_DISPLAY_TO_API.get(model, model)
+        url_delivery = bool(use_image_url_delivery) or (
+            os.environ.get("SNTZ_IMAGE_DELIVERY_URL", "").strip().lower() in ("1", "true", "yes", "on")
+        )
         result = self._process_api(
             base=BASE_URL_SNTZ,
             api_key=key,
@@ -596,9 +888,10 @@ class SNTZImagen:
             aspect_ratio=aspect_ratio,
             resolution=resolution,
             seed=seed,
-            debug_payload=debug,
+            debug_payload=True,
+            use_image_url_delivery=url_delivery,
         )
-        return (result[0], result[1])
+        return (result[0], result[1], result[2])
 
     def _process_api(
         self,
@@ -610,6 +903,7 @@ class SNTZImagen:
         resolution,
         seed,
         debug_payload,
+        use_image_url_delivery=False,
     ):
         """Запрос через New API в OpenRouter. Формат OpenRouter: image_config и modalities на верхнем уровне."""
         # OpenRouter model ID: google/gemini-2.5-flash-image и т.п.
@@ -633,12 +927,17 @@ class SNTZImagen:
 
         url = f"{base.rstrip('/')}/chat/completions"
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+        if use_image_url_delivery:
+            headers["X-SNTZ-Image-Delivery"] = "url"
 
         date_request = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         resolution_str = f"{aspect_ratio} / {resolution}"
         prompt_preview = content if isinstance(content, str) else next((c.get("text", "") for c in content if isinstance(c, dict) and c.get("type") == "text"), "")
         prompt_log = (str(prompt_preview)[:120] + "…") if len(str(prompt_preview)) > 120 else str(prompt_preview)
         print(f"[SNTZ Imagen] ЗАПРОС  дата={date_request}  модель={model_for_api}  разрешение={resolution_str}\n  промпт: {prompt_log}")
+        print(f"[SNTZ Imagen] {_summarize_outgoing_images_for_log(content)}")
+        if use_image_url_delivery:
+            print("[SNTZ Imagen] режим ответа: ссылки на файлы (X-SNTZ-Image-Delivery: url)")
         if debug_payload:
             prompt_preview = content if isinstance(content, str) else next((c.get("text", "") for c in content if c.get("type") == "text"), "")
             _log_analytics("ЗАПРОС (тело)", {
@@ -651,92 +950,206 @@ class SNTZImagen:
             })
 
         output_tensors = []
-        last_402 = [None]
-        last_403_quota = [None]
+        http_img_errors = []
+        decode_errors = []
         t0 = time.perf_counter()
+        post_timeout = 180 if use_image_url_delivery else 120
 
         try:
-            r = requests.post(url, headers=headers, json=payload, timeout=120)
-            try:
-                resp_body = r.json()
-            except Exception:
-                resp_body = r.text
-            gen_time_sec = time.perf_counter() - t0
-            date_response = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f"[SNTZ Imagen] ОТВЕТ  дата={date_response}  модель={model_for_api}  разрешение={resolution_str}  время_генерации_сек={gen_time_sec:.2f}  status={r.status_code}\n  промпт: {prompt_log}")
+            r = requests.post(url, headers=headers, json=payload, timeout=post_timeout)
+        except requests.exceptions.Timeout:
+            print(f"[SNTZ Imagen] Ошибка: таймаут запроса ({post_timeout} с)")
+            raise ValueError(
+                f"Превышено время ожидания ответа API ({post_timeout} с). "
+                "Повторите запрос позже. При больших входных изображениях попробуйте уменьшить их или включить выдачу результата по URL (use_image_url_delivery)."
+            ) from None
+        except requests.exceptions.ConnectionError as e:
+            print(f"[SNTZ Imagen] Ошибка: нет соединения с API — {e!s}")
+            raise ValueError(
+                f"Не удалось подключиться к серверу API. Проверьте интернет и адрес шлюза. ({url})"
+            ) from None
+        except requests.exceptions.RequestException as e:
+            print(f"[SNTZ Imagen] Ошибка сети: {e!s}")
+            raise ValueError(f"Сбой сети при обращении к API: {e!s}") from None
 
-            if r.status_code == 403 and isinstance(resp_body, dict):
-                err = resp_body.get("error", {})
-                if err.get("code") == "insufficient_user_quota":
-                    raw_msg = err.get("message", "")
-                    last_403_quota[0] = _translate_quota_error_message(raw_msg)
-                    print("\n[SNTZ Imagen] 403: не хватает денег на счёте, квота исчерпана.")
-                    print("  Пополните баланс в личном кабинете SNTZapi (раздел квот).\n")
-            if r.status_code == 402:
-                last_402[0] = (resp_body.get("message") if isinstance(resp_body, dict) else None) or r.text
-                print("\n[SNTZ Imagen] 402 Payment Required (модель: %s)." % model_for_api)
-                print("  Часто 402 приходит только для части моделей (например gemini-3.1 / 3-pro),")
-                print("  а gemini-2.5-flash-image при тех же картинках и ключе — работает.")
-                print("  Проверьте кредиты и настройки ключа в дашборде SNTZapi; при запросах с картинками списание выше.\n")
-            r.raise_for_status()
-            data = r.json() if isinstance(resp_body, dict) else {}
-        except requests.exceptions.HTTPError as e:
-            print(f"[SNTZ Imagen] HTTP ошибка: {e}")
-            if e.response is not None:
-                print(f"[SNTZ Imagen] Тело ответа: {e.response.text[:1000]}")
-        except Exception as e:
-            print(f"[SNTZ Imagen] Ошибка запроса: {e}")
-            if getattr(e, "response", None) is not None:
-                print(f"[SNTZ Imagen] Ответ: {getattr(e.response, 'text', '')[:1000]}")
-        else:
-            msg = data.get("choices", [{}])[0].get("message", {})
-            content_raw = msg.get("content")
-            # Формат 1: content — массив блоков с type "image_url" и url "data:image/...;base64,..."
-            blocks = msg.get("images", []) or (content_raw if isinstance(content_raw, list) else [])
-            for block in blocks:
-                if not isinstance(block, dict):
-                    continue
-                img_obj = block.get("image_url") or block
-                url_val = img_obj.get("url") if isinstance(img_obj, dict) else None
-                if url_val and url_val.startswith("data:"):
-                    try:
-                        b64_part = url_val.split(",", 1)[-1]
-                        pil_out = _decode_b64_to_pil(b64_part)
-                        if pil_out:
-                            output_tensors.append(pil2tensor(pil_out))
-                    except Exception as e:
-                        print(f"Error decoding API image: {e}")
-            # Формат 2: content — строка с markdown-картинками ![image](data:image/png;base64,...) (New API / Gemini)
-            if not output_tensors and isinstance(content_raw, str) and "data:image/" in content_raw:
-                for b64_part in _extract_base64_images_from_markdown_content(content_raw):
-                    try:
-                        pil_out = _decode_b64_to_pil(b64_part)
-                        if pil_out:
-                            output_tensors.append(pil2tensor(pil_out))
-                    except Exception as e:
-                        print(f"[SNTZ Imagen] Error decoding markdown image: {e}")
+        try:
+            resp_body = r.json()
+        except Exception:
+            resp_body = r.text
 
-        if not output_tensors:
-            hint = _allowed_models_hint(base, api_key)
-            if last_403_quota[0] is not None:
+        gen_time_sec = time.perf_counter() - t0
+        date_response = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[SNTZ Imagen] ОТВЕТ  дата={date_response}  модель={model_for_api}  разрешение={resolution_str}  время_генерации_сек={gen_time_sec:.2f}  status={r.status_code}\n  промпт: {prompt_log}")
+
+        if r.status_code == 401:
+            detail = _extract_api_error_message(resp_body if isinstance(resp_body, dict) else {}, r.text)
+            print("[SNTZ Imagen] Ошибка: неверный или неподдерживаемый API-ключ (401)")
+            raise ValueError(
+                "Доступ запрещён: неверный, просроченный или отозванный API-ключ. "
+                "Укажите ключ в ноде, в файле .api_key или в переменной SNTZ_API_KEY."
+                + (f" Сообщение сервера: {detail}" if detail else "")
+            )
+
+        if r.status_code == 403 and isinstance(resp_body, dict):
+            err = resp_body.get("error", {})
+            if err.get("code") == "insufficient_user_quota":
+                print("[SNTZ Imagen] 403: недостаточно квоты / баланса на счёте")
                 balance_info = _fetch_balance(base, api_key)
                 balance_str = _build_balance_str(balance_info)
                 placeholder = torch.zeros(1, 64, 64, 3)
-                return (placeholder, balance_str)
-            if last_402[0]:
-                msg_402 = _translate_quota_error_message(last_402[0])
+                return (placeholder, balance_str, "")
+
+        if r.status_code == 403:
+            detail = _extract_api_error_message(resp_body if isinstance(resp_body, dict) else {}, r.text)
+            print(f"[SNTZ Imagen] Ошибка: доступ запрещён (403){(' — ' + detail) if detail else ''}")
+            raise ValueError(
+                "Доступ запрещён (403). "
+                + (detail or "Проверьте права ключа и настройки в личном кабинете.")
+            )
+
+        if r.status_code == 402:
+            msg_402 = _extract_api_error_message(
+                resp_body if isinstance(resp_body, dict) else {},
+                r.text,
+            )
+            if not msg_402:
+                msg_402 = _translate_quota_error_message(
+                    (resp_body.get("message") if isinstance(resp_body, dict) else "") or r.text or ""
+                )
+            print(f"[SNTZ Imagen] Ошибка: недостаточно средств или квоты (402){(' — ' + msg_402) if msg_402 else ''}")
+            raise ValueError(
+                "Недостаточно средств или квоты для этой операции (402). "
+                + (msg_402 + " " if msg_402 else "")
+                + "Пополните баланс или выберите другую модель в личном кабинете SNTZapi."
+            )
+
+        if r.status_code == 429:
+            detail = _extract_api_error_message(resp_body if isinstance(resp_body, dict) else {}, r.text)
+            print("[SNTZ Imagen] Ошибка: слишком много запросов (429)")
+            raise ValueError(
+                "Слишком много запросов (429). Подождите и повторите."
+                + (f" {detail}" if detail else "")
+            )
+
+        if r.status_code >= 500:
+            detail = _extract_api_error_message(resp_body if isinstance(resp_body, dict) else {}, r.text)
+            print(f"[SNTZ Imagen] Ошибка: сервер API ({r.status_code})")
+            raise ValueError(
+                f"Временная ошибка на стороне сервера (HTTP {r.status_code}). Повторите запрос позже."
+                + (f" {detail}" if detail else "")
+            )
+
+        if r.status_code >= 400:
+            detail = _extract_api_error_message(resp_body if isinstance(resp_body, dict) else {}, r.text)
+            print(f"[SNTZ Imagen] Ошибка API: HTTP {r.status_code}{(' — ' + detail) if detail else ''}")
+            raise ValueError(
+                f"Запрос отклонён (HTTP {r.status_code}). "
+                + (detail or "Проверьте модель, ключ и параметры запроса.")
+            )
+
+        data = resp_body if isinstance(resp_body, dict) else {}
+        choices = data.get("choices")
+        if not choices:
+            print("[SNTZ Imagen] Ошибка: в ответе нет choices")
+            raise ValueError(
+                "API вернул ответ без результата (нет поля choices). Возможен сбой шлюза или смена формата API."
+            )
+
+        msg = (choices[0] or {}).get("message") or {}
+        content_raw = msg.get("content")
+        response_image_urls = _collect_http_image_urls_from_assistant_message(content_raw, msg)
+        text_scan = _all_assistant_text_blobs(content_raw, msg)
+        # Формат 1: content — массив блоков с type "image_url" и url "data:image/...;base64,..."
+        blocks = msg.get("images", []) or (content_raw if isinstance(content_raw, list) else [])
+        for block in blocks:
+            if not isinstance(block, dict):
+                continue
+            img_obj = block.get("image_url") or block
+            url_val = img_obj.get("url") if isinstance(img_obj, dict) else None
+            if url_val and url_val.startswith("data:"):
+                try:
+                    b64_part = url_val.split(",", 1)[-1]
+                    pil_out = _decode_b64_to_pil(b64_part)
+                    if pil_out:
+                        output_tensors.append(pil2tensor(pil_out))
+                    else:
+                        decode_errors.append("не удалось декодировать data URL в блоке ответа")
+                except Exception as e:
+                    decode_errors.append(f"блок data URL: {e!s}"[:120])
+            elif url_val and (url_val.startswith("http://") or url_val.startswith("https://")):
+                pil_out, err = _pil_from_http_image_url(url_val)
+                if pil_out:
+                    output_tensors.append(pil2tensor(pil_out))
+                elif err:
+                    http_img_errors.append(err)
+        # Формат 2: markdown ![image](data:...) в строке content или в частях type=text
+        if not output_tensors and text_scan and "data:image/" in text_scan:
+            for b64_part in _extract_base64_images_from_markdown_content(text_scan):
+                try:
+                    pil_out = _decode_b64_to_pil(b64_part)
+                    if pil_out:
+                        output_tensors.append(pil2tensor(pil_out))
+                    else:
+                        decode_errors.append("не удалось декодировать base64 из markdown")
+                except Exception as e:
+                    decode_errors.append(f"markdown base64: {e!s}"[:120])
+        # Формат 3: https-ссылки на файл (/gen/ или расширение картинки)
+        if not output_tensors and text_scan:
+            md_urls = _extract_http_image_urls_from_markdown_content(text_scan)
+            loose_urls = _extract_loose_http_image_urls(text_scan)
+            for img_url in md_urls + [u for u in loose_urls if u not in md_urls]:
+                pil_out, err = _pil_from_http_image_url(img_url)
+                if pil_out:
+                    output_tensors.append(pil2tensor(pil_out))
+                elif err:
+                    http_img_errors.append(err)
+
+        print(
+            f"[SNTZ Imagen] {_summarize_assistant_response_for_log(content_raw, msg, len(output_tensors), http_img_errors, decode_errors)}"
+        )
+
+        if not output_tensors:
+            urls_str = _format_image_urls_output(response_image_urls)
+            if http_img_errors and urls_str:
+                _log_image_urls_output(response_image_urls, urls_str)
+                print(
+                    "[SNTZ Imagen] Предупреждение: не удалось загрузить файл по ссылке в ноду. "
+                    "Скопируйте выход image_urls и откройте в браузере."
+                )
+                balance_info = _fetch_balance(base, api_key)
+                balance_str = (
+                    "Изображение записано на сервере, но загрузка в Comfy не удалась. "
+                    "Откройте ссылки из выхода image_urls.\n\n"
+                    + _build_balance_str(balance_info)
+                )
+                placeholder = torch.zeros(1, 64, 64, 3)
+                return (placeholder, balance_str, urls_str)
+            if http_img_errors:
+                joined = " ".join(http_img_errors[:3])
                 raise ValueError(
-                    "Исчерпана квота или не хватает средств (402), модель: %s. %s "
-                    "Пополните баланс или проверьте лимиты квоты в личном кабинете SNTZapi. "
-                    "При запросах с картинками списание выше; можно попробовать другую модель.%s "
-                    "Подробнее: http://sintez.space/node"
-                    % (model_for_api, msg_402, hint)
+                    "Не удалось получить изображение по ссылке из ответа API. "
+                    + joined
+                    + " Проверьте доступность URL в браузере и настройку раздачи файлов (/gen/) на сервере."
+                )
+            if decode_errors:
+                raise ValueError(
+                    "Не удалось разобрать изображение в ответе API: " + "; ".join(decode_errors[:5])
+                )
+            if isinstance(content_raw, str) and content_raw.strip():
+                hint = _allowed_models_hint(base, api_key)
+                raise ValueError(
+                    "Ответ API не содержит изображения (только текст или неподдерживаемый формат). "
+                    "Попробуйте другую модель или измените запрос."
+                    + hint
                 )
             raise ValueError(
-                "SNTZapi не вернул изображение. Возможные причины: модель недоступна по вашему ключу, временная ошибка или сеть.%s "
-                "Переключитесь на другую модель или попробуйте позже. Подробная инструкция: http://sintez.space/node"
-                % hint
+                "Пустой ответ от API: нет текста и изображения. Повторите запрос."
             )
+
         balance_info = _fetch_balance(base, api_key)
         balance_str = _build_balance_str(balance_info)
-        return (torch.cat(output_tensors, dim=0), balance_str)
+        urls_str = _format_image_urls_output(response_image_urls)
+        if not (urls_str or "").strip():
+            urls_str = _fallback_image_urls_caption(use_image_url_delivery)
+        _log_image_urls_output(response_image_urls, urls_str)
+        return (torch.cat(output_tensors, dim=0), balance_str, urls_str)

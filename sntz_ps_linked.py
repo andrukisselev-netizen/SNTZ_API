@@ -199,6 +199,12 @@ class SNTZPSLinkedFolder:
             },
             "optional": {
                 "api_key_file": ([".api_key"], {"default": ".api_key", "hidden": True}),
+                # Не в required: старые workflow / плагин Photoshop не шлют это поле в prompt API.
+                "use_image_url_delivery": ("BOOLEAN", {
+                    "default": False,
+                    "label_on": "true",
+                    "label_off": "false",
+                }),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -206,8 +212,8 @@ class SNTZPSLinkedFolder:
             },
         }
 
-    RETURN_TYPES = ("IMAGE", "STRING")
-    RETURN_NAMES = ("images", "credits")
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING")
+    RETURN_NAMES = ("images", "credits", "image_urls")
     FUNCTION = "process"
     CATEGORY = "SNTZ"
     OUTPUT_NODE = True
@@ -224,6 +230,7 @@ class SNTZPSLinkedFolder:
         seed,
         overwrite_source,
         api_key_file=None,
+        use_image_url_delivery=False,
         unique_id=None,
         execution_prompt=None,
     ):
@@ -289,8 +296,11 @@ class SNTZPSLinkedFolder:
             {"type": "text", "text": prompt_text},
             {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{input_b64}"}},
         ]
+        url_del = bool(use_image_url_delivery) or (
+            os.environ.get("SNTZ_IMAGE_DELIVERY_URL", "").strip().lower() in ("1", "true", "yes", "on")
+        )
         imagen = SNTZImagen()
-        out_tensor, credits = imagen._process_api(
+        out_tensor, credits, image_urls = imagen._process_api(
             base=BASE_URL_SNTZ,
             api_key=key,
             content=content,
@@ -299,7 +309,20 @@ class SNTZPSLinkedFolder:
             resolution=resolution,
             seed=seed,
             debug_payload=False,
+            use_image_url_delivery=url_del,
         )
+
+        tiny_preview = (
+            out_tensor.shape[0] == 1
+            and out_tensor.shape[1] == 64
+            and out_tensor.shape[2] == 64
+        )
+        if tiny_preview and (image_urls or "").strip():
+            print(
+                "[SNTZ PS Linked] На диск не сохранено: откройте ссылку из выхода image_urls:\n"
+                + image_urls.strip()
+            )
+            return (out_tensor, credits, image_urls)
 
         out_pil = tensor2pil(out_tensor)
         if out_pil:
@@ -319,4 +342,4 @@ class SNTZPSLinkedFolder:
             dpi_str = f" DPI {src_dpi[0]:.0f}x{src_dpi[1]:.0f}" if src_dpi else ""
             print(f"[SNTZ PS Linked] Сохранено: {dest_path}{dpi_str}")
 
-        return (out_tensor, credits)
+        return (out_tensor, credits, image_urls)

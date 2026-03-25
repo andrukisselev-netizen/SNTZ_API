@@ -126,6 +126,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 8px;
       padding: 6px 10px;
       background: rgba(0,0,0,0.2);
       border-radius: 4px;
@@ -133,6 +134,8 @@
       margin-bottom: 6px;
     }
     .balance-display {
+      flex: 1;
+      min-width: 0;
       font-family: monospace;
       color: var(--fg);
       display: flex;
@@ -149,6 +152,7 @@
     }
     .status-inline.error { color: #ff6b6b; }
     .status-inline.success { color: #51cf66; }
+    #status { max-width: 52%; text-align: right; word-break: break-word; }
   </style>
 </head>
 <body>

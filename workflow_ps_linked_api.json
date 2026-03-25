@@ -10,7 +10,8 @@
       "aspect_ratio": "1:1",
       "resolution": "1K",
       "seed": 0,
-      "overwrite_source": true
+      "overwrite_source": true,
+      "use_image_url_delivery": false
     }
   }
 }
