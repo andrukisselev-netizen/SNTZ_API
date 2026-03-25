@@ -78,7 +78,7 @@ SNTZ_API/
 | **SNTZimage** | Генерация изображений (Gemini) по промпту, опционально с входными картинками |
 | **SNTZphotoshop** | Цикл Photoshop ↔ ComfyUI: экспорт выделения → генерация → обновление Linked Smart Object |
 
-Детали: [sintez.space](http://sintez.space). ЛК (лимиты, пополнение): http://176.124.212.29/
+Детали: [sintez.space](http://sintez.space).
 
 ---
 
@@ -156,4 +156,4 @@ Summary:
 | **SNTZimage** | Image generation (Gemini) from prompt, optionally with input images |
 | **SNTZphotoshop** | Photoshop ↔ ComfyUI loop: export selection → generate → update Linked Smart Object |
 
-Details: [sintez.space](http://sintez.space). Dashboard (limits, top-up): http://176.124.212.29/
+Details: [sintez.space](http://sintez.space). 
